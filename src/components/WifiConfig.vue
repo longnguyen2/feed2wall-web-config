@@ -1,48 +1,46 @@
 <template>
-  <div>
-    <g-dialog v-model="toggleDialog" bottom overlay-color="#212121" overlay-opacit="0.46" max-width="100vw" width="100vw">
+  <g-dialog v-model="toggleDialog" bottom overlay-color="#212121" overlay-opacit="0.46" max-width="100%" width="100%">
 
-      <template v-slot:activator>
-        <g-list :items="wifis" elevation="0" item-value="title">
-          <template v-slot:subheader>
-            <g-row class="header">
-              <g-col align-self="center"><div class="header__title text-light-blue-accent-3 g-list-header">WIFI LIST</div></g-col>
-              <g-col align-self="center" class="row-flex justify-end"><g-btn icon class="header__refresh" :class="{ 'header__refresh--loading': loading }" @click="refreshList"><g-icon>mdi-refresh</g-icon></g-btn></g-col>
-            </g-row>
-          </template>
+    <template v-slot:activator>
+      <g-list :items="wifis" elevation="0" item-value="title">
+        <template v-slot:subheader>
+          <g-row class="header">
+            <g-col align-self="center"><div class="header__title text-light-blue-accent-3 g-list-header">WIFI LIST</div></g-col>
+            <g-col align-self="center" class="row-flex justify-end"><g-btn icon class="header__refresh" :class="{ 'header__refresh--loading': loading }" @click="refreshList"><g-icon>mdi-refresh</g-icon></g-btn></g-col>
+          </g-row>
+        </template>
 
-          <template v-slot:listItem="{ item }">
-            <div v-if="connecting === item.title" class="g-list-item waves-effect waves-auto" tabindex="0">
-              <g-icon color="#00b0ff">{{item.prepend}}</g-icon>
-              <div class="g-list-item-content">
-                <div class="g-list-item-text text-light-blue-accent-3">{{item.title}}</div>
-              </div>
-              <g-icon color="#00b0ff">{{item.append}}</g-icon>
+        <template v-slot:listItem="{ item }">
+          <div v-if="connecting === item.title" class="g-list-item waves-effect waves-auto" tabindex="0">
+            <g-icon color="#00b0ff">{{item.prepend}}</g-icon>
+            <div class="g-list-item-content">
+              <div class="g-list-item-text text-light-blue-accent-3">{{item.title}}</div>
             </div>
-            <div v-else class="g-list-item waves-effect waves-auto" tabindex="0" @click="openDialog(item.title)">
-              <g-icon>{{item.prepend}}</g-icon>
-              <div class="g-list-item-content">
-                <div class="g-list-item-text">{{item.title}}</div>
-              </div>
-              <g-icon>{{item.append}}</g-icon>
+            <g-icon color="#00b0ff">{{item.append}}</g-icon>
+          </div>
+          <div v-else class="g-list-item waves-effect waves-auto" tabindex="0" @click="openDialog(item.title)">
+            <g-icon>{{item.prepend}}</g-icon>
+            <div class="g-list-item-content">
+              <div class="g-list-item-text">{{item.title}}</div>
             </div>
-          </template>
-        </g-list>
-      </template>
+            <g-icon>{{item.append}}</g-icon>
+          </div>
+        </template>
+      </g-list>
+    </template>
 
-      <g-card flat width="100%" class="wifi-dialog" style="border-top-left-radius: 20px; border-top-right-radius: 20px;">
-        <g-card-title class="wifi-dialog__name justify-center">{{ssid}}</g-card-title>
-        <g-card-text>
-          <g-text-field class="wifi-dialog__input" v-model="password" type="password" placeholder="Password" outlined rounded></g-text-field>
-        </g-card-text>
-        <g-card-actions>
-          <g-btn rounded depressed background-color="#e0dfe0" style="flex-grow: 1" left @click="toggleDialog = false">Cancel</g-btn>
-          <g-btn rounded depressed :disabled="disableSubmit" background-color="#e0dfe0" text-color="#0091ea" style="flex-grow: 1" right>Connect</g-btn>
-        </g-card-actions>
-      </g-card>
+    <g-card flat width="100%" class="wifi-dialog" style="border-top-left-radius: 20px; border-top-right-radius: 20px;">
+      <g-card-title class="fs-large-3 justify-center">{{ssid}}</g-card-title>
+      <g-card-text>
+        <g-text-field v-model="password" type="password" placeholder="Password" outlined rounded></g-text-field>
+      </g-card-text>
+      <g-card-actions>
+        <g-btn class="wifi-dialog__action" rounded depressed background-color="#e0dfe0" left @click="toggleDialog = false">Cancel</g-btn>
+        <g-btn class="wifi-dialog__action" rounded depressed :disabled="disableSubmit" background-color="#e0dfe0" text-color="#0091ea" right>Connect</g-btn>
+      </g-card-actions>
+    </g-card>
 
-    </g-dialog>
-  </div>
+  </g-dialog>
 </template>
 
 <script>
@@ -85,7 +83,7 @@ export default {
     async refreshList() {
       this.loading = true;
       await this.getAvailableWifis();
-      // this.loading = false;
+      this.loading = false;
     },
     async getAvailableWifis() {
       try {
@@ -99,11 +97,12 @@ export default {
           if (w.connecting) {
             wifi.append = 'mdi-check';
             this.connecting = wifi.title;
+            this.wifis.unshift(wifi);
+          } else {
+            this.wifis.push(wifi);
           }
-          this.wifis.push(wifi);
         });
       } catch (e) {
-        // eslint-disable-next-line no-console
         console.error(e);
       }
     },
@@ -121,7 +120,6 @@ export default {
         this.isConnectionOk = response.data.result;
         this.networkConnectionResult = this.isConnectionOk ? 'Success, app will restart shortly' : 'Connection failed, check your password';
       } catch (e) {
-        // eslint-disable-next-line no-console
         console.error(e);
       }
     },
@@ -148,13 +146,19 @@ export default {
     }
   }
 
-  .active-item {
-    color: #00b0ff;
+  .g-tf__outlined {
+    ::v-deep &.g-tf-wrapper:focus-within fieldset {
+      border: 2px solid #00b0ff;
+    }
   }
 
   .wifi-dialog {
-    &__name {
-      font-size: 1.3em !important;
+
+    &__action {
+      flex-grow: 1;
+      font-size: 1em !important;
+      margin-bottom: 0.5em;
+      height: 2.5em !important;
     }
   }
 </style>
