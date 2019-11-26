@@ -1,24 +1,23 @@
 <template>
   <g-dialog v-model="toggleDialog" bottom overlay-color="#212121" overlay-opacit="0.46" max-width="100%" width="100%">
-
     <template v-slot:activator>
-      <g-list :items="wifis" elevation="0" item-value="title">
-        <template v-slot:subheader>
-          <g-row class="header">
-            <g-col align-self="center"><div class="header__title text-light-blue-accent-3 g-list-header">WIFI LIST</div></g-col>
-            <g-col align-self="center" class="row-flex justify-end"><g-btn icon class="header__refresh" :class="{ 'header__refresh--loading': loading }" @click="refreshList"><g-icon>mdi-refresh</g-icon></g-btn></g-col>
-          </g-row>
-        </template>
+      <g-toolbar class="toolbar" dense elevation="1" color="#00b0ff" height="56">
+        <g-btn flat icon @click="backToHome"><g-icon color="#ffffff">mdi-arrow-left</g-icon></g-btn>
+        <span class="ml-3 text-white fw-500">Wifi list</span>
+        <g-spacer />
+        <g-btn icon class="toolbar__refresh" :class="{ 'toolbar__refresh--loading': loading }" @click="refreshList"><g-icon color="#ffffff">mdi-refresh</g-icon></g-btn>
+      </g-toolbar>
 
+      <g-list :items="wifis" elevation="0" item-value="title">
         <template v-slot:listItem="{ item }">
-          <div v-if="connecting === item.title" class="g-list-item waves-effect waves-auto" tabindex="0">
+          <div v-if="connecting === item.title" class="g-list-item waves-effect waves-auto ml-2" tabindex="0">
             <g-icon color="#00b0ff">{{item.prepend}}</g-icon>
             <div class="g-list-item-content">
               <div class="g-list-item-text text-light-blue-accent-3">{{item.title}}</div>
             </div>
             <g-icon color="#00b0ff">{{item.append}}</g-icon>
           </div>
-          <div v-else class="g-list-item waves-effect waves-auto" tabindex="0" @click="openDialog(item.title)">
+          <div v-else class="g-list-item waves-effect waves-auto ml-2" tabindex="0" @click="openDialog(item.title)">
             <g-icon>{{item.prepend}}</g-icon>
             <div class="g-list-item-content">
               <div class="g-list-item-text">{{item.title}}</div>
@@ -46,10 +45,10 @@
 <script>
 import axios from 'axios';
 
-import { GList, GIcon, GRow, GCol, GDialog, GCard, GCardTitle, GCardText, GCardActions, GBtn, GTextField } from 'pos-vue-framework/src/components';
+import { GList, GIcon, GRow, GCol, GDialog, GCard, GCardTitle, GCardText, GCardActions, GBtn, GTextField, GToolbar, GSpacer } from 'pos-vue-framework/src/components';
 
 export default {
-  components: { GList, GIcon, GRow, GCol, GDialog, GCard, GCardTitle, GCardText, GCardActions, GBtn, GTextField },
+  components: { GList, GIcon, GRow, GCol, GDialog, GCard, GCardTitle, GCardText, GCardActions, GBtn, GTextField, GToolbar, GSpacer },
   data() {
     return {
       selectedWifiIndex: null,
@@ -123,6 +122,9 @@ export default {
         console.error(e);
       }
     },
+    backToHome() {
+      this.$router.push({ path: '/' });
+    }
   },
 };
 </script>
@@ -131,12 +133,9 @@ export default {
   @-moz-keyframes spin { 100% { -moz-transform: rotate(360deg); } }
   @-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }
 
-  .header {
-    &__title {
-      font-size: 1.2em;
-    }
+  .toolbar {
     &__refresh {
-      margin-right: 16px;
+      margin-right: 12px;
 
       &--loading {
         -webkit-animation:spin 1s linear infinite;

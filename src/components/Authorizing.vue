@@ -29,7 +29,7 @@
             <g-btn background-color="#00b0ff" text-color="#ffffff">Login</g-btn>
           </g-card-actions>
           <g-card-actions v-else class="justify-between">
-              <g-btn background-color="#ff0000" text-color="#ffffff">Logout</g-btn>
+              <g-btn background-color="#ff1744" text-color="#ffffff">Logout</g-btn>
               <g-btn background-color="#ffffff" text-color="#000000">New code</g-btn>
               <g-btn background-color="#00b0ff" text-color="#ffffff">Send</g-btn>
           </g-card-actions>

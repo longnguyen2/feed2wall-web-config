@@ -1,22 +1,24 @@
 <template>
   <div id="app">
-<!--    <authorizing :is-not-authorized="false" :is-required-login="false" is-required-security-code />-->
-<!--    <wifi-config />-->
-    <slideshow-config />
+    <router-view></router-view>
   </div>
 </template>
 
 <script>
-// import WifiConfig from "./components/WifiConfig"
-// import Authorizing from "./components/Authorizing"
+import WifiConfig from "./components/WifiConfig"
+import Authorizing from "./components/Authorizing"
 import SlideshowConfig from "./components/SlideshowConfig"
+import Home from "./components/Home"
+import License from "./components/License"
 
 export default {
   name: 'app',
   components: {
-    // WifiConfig,
-    // Authorizing,
-    SlideshowConfig
+    WifiConfig,
+    Authorizing,
+    SlideshowConfig,
+    Home,
+    License
   }
 }
 </script>
