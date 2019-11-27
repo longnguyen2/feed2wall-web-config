@@ -7,20 +7,26 @@
     <div v-show="loading" class="bg-amber-accent-4 text-white fs-small fw-500 ta-center">Loading config data</div>
 
     <g-row justify-content="space-between">
-      <g-col cols="5"><g-select :items="types" item-value="text" solo v-model="model.queryType" :rules="[checkNotEmpty]"/></g-col>
-      <g-col cols="7"><g-text-field :placeholder="inputPlaceholder" solo v-model="model.queryName"/></g-col>
+<!--      <g-col cols="5"><g-select :items="types" item-value="text" solo v-model="model.queryType" :rules="[checkNotEmpty]"/></g-col>-->
+<!--      <g-col cols="7"><g-text-field :placeholder="inputPlaceholder" solo v-model="model.queryName"/></g-col>-->
+      <g-col><g-autocomplete placeholder="Enter @Account or #Hashtag" :items="searchItems" solo v-model="model.queryName" @input="saySomething"/></g-col>
     </g-row>
 
     <div class="configs fw-500">
       <div class="ml-3 fs-small text-blue-grey-lighten-1">BASIC CONFIGS</div>
       <template v-for="config in basicConfigs">
-        <g-row>
-          <g-col class="self-center">{{config.title}}{{model.basic[config.model]}} {{config.unit}}</g-col>
-          <g-col><g-slider-remake :min="config.min" :max="config.max" step="1" track-fill-color="#00b0ff" thumb-color="#00b0ff" v-model="model.basic[config.model]"></g-slider-remake></g-col>
+        <g-row class="pt-1 pb-1">
+          <g-col class="self-center">
+            <div>{{config.title}}{{model.basic[config.model]}} {{config.unit}}</div>
+            <div class="fs-small-2 text-grey">{{config.subtext}}</div>
+          </g-col>
+          <g-col>
+            <g-slider-remake :min="config.min" :max="config.max" step="1" track-fill-color="#00b0ff" thumb-color="#00b0ff" v-model="model.basic[config.model]"></g-slider-remake>
+          </g-col>
         </g-row>
       </template>
 
-      <div class="mt-3 ml-3 fs-small text-blue-grey-lighten-1">VISIBILITY CONFIGS</div>
+      <div class="mt-5 ml-3 fs-small text-blue-grey-lighten-1">VISIBILITY CONFIGS</div>
       <template v-for="config in visibilityConfigs">
         <g-row>
           <g-col cols="8" class="self-center">{{model.visibility[config.model] ? config.enableMsg : config.disableMsg}}</g-col>
@@ -37,20 +43,23 @@
 </template>
 
 <script>
-  import { GToolbar, GIcon, GContainer, GRow, GCol, GTextField, GCheckbox, GBtn, GDivider, GSpacer, GList, GSelect, GSliderRemake, GSwitch } from 'pos-vue-framework/src/components';
+  import { GToolbar, GIcon, GContainer, GRow, GCol, GTextField, GCheckbox, GBtn, GDivider, GSpacer, GList, GSelect, GSliderRemake, GSwitch, GAutocomplete } from 'pos-vue-framework/src/components';
+
+  import { clearSource } from "../../utils";
+  import axios from 'axios';
 
   export default {
     name: "SlideConfig",
-    components: { GToolbar, GIcon, GContainer, GRow, GCol, GTextField, GCheckbox, GBtn, GDivider, GSpacer, GList, GSelect, GSliderRemake, GSwitch },
+    components: { GToolbar, GIcon, GContainer, GRow, GCol, GTextField, GCheckbox, GBtn, GDivider, GSpacer, GList, GSelect, GSliderRemake, GSwitch, GAutocomplete },
     mounted() {
       this.loading = true;
-      this.$p2p.emit('app:get-config');
-      this.$p2p.on('client:send-config', data => {
-        console.log(data);
-        this.defaultModel = data;
+      this.$socket.removeListener('client:send-config');
+      this.$socket.on('client:send-config', data => {
+        data = clearSource(data);
         this.model = data;
         this.loading = false;
       });
+      this.$socket.emit('app:get-config');
     },
     data() {
       return {
@@ -58,11 +67,12 @@
           { text: 'Profile' },
           { text: 'Hashtag' },
         ],
+        searchItems: [],
         checkNotEmpty: (value) => !!value || 'Required',
         basicConfigs: [
-          { model: 'total', title: 'Number of posts: ', min: 1, max: 100, unit: '' },
-          { model: 'delay', title: 'Delay: ', min: 5, max: 60, unit: 's' },
-          { model: 'interval', title: 'Refresh interval: ', min: 5, max: 60, unit: 'min' }
+          { model: 'total', title: 'Number of posts: ', subtext: '', min: 1, max: 100, unit: '' },
+          { model: 'delay', title: 'Delay: ', subtext: 'Each image is shown for', min: 5, max: 60, unit: 's' },
+          { model: 'interval', title: 'Interval: ', subtext: 'Reload data interval', min: 5, max: 60, unit: 'min' }
         ],
         visibilityConfigs: [
           { model: 'avatar', enableMsg: 'Display user avatar', disableMsg: 'Do not display user avatar' },
@@ -103,19 +113,40 @@
         this.$router.push({ path: '/' });
       },
       saveConfig() {
-        this.$p2p.emit('app:change-config', this.model);
+        const configModel = clearSource(this.model);
+        this.$socket.emit('app:change-config', configModel);
       },
       resetConfig() {
-        this.model = this.defaultModel;
+        this.search('@vindiesel');
+      },
+      saySomething() {
+        console.log('mama, just killed a man');
+      },
+      async search(query) {
+        query = encodeURI(query);
+        if (query[0] === '#') query = `%23${query.substring(1, query.length)}`;
+        if (query[0] === '@') query = `%40${query.substring(1, query.length)}`;
+        const searchUrl = `https://www.instagram.com/web/search/topsearch/?context=blended&query=${query}&include_reel=true`;
+        const { data: searchResult } = await axios.get(searchUrl);
+
+        this.searchItems = [];
+        const accounts = searchResult.users.map(account => ({ text: account.user['username'], prepend: account.user['profile_pic_url'], subtitle: account.user['full_name'] }));
+        this.searchItems = this.searchItems.concat(accounts);
+        const hashtags = searchResult.hashtags.map(tag => ({ text: `#${tag.hashtag['name']}`, prepend: tag.hashtag['profile_pic_url'], subtitle: tag.hashtag['search_result_subtitle'] }));
+        this.searchItems = this.searchItems.concat(hashtags);
       }
-    }
+  }
   }
 </script>
 
 <style scoped lang="scss">
-  .g-tf__outlined {
-    ::v-deep &.g-tf-wrapper:focus-within fieldset {
+  .g-tf__outlined.g-tf-wrapper {
+    ::v-deep &:focus-within fieldset {
       border: 2px solid #00b0ff;
+    }
+
+    ::v-deep & fieldset {
+      border: 1px solid rgba(0, 0, 0, 0.2);
     }
   }
 

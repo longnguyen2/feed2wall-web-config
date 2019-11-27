@@ -2,9 +2,9 @@ import Vue from 'vue';
 import VueRouter from 'vue-router';
 
 import Home from '../components/Home';
-import SlideshowConfig from "../components/SlideshowConfig";
-import WifiConfig from "../components/WifiConfig";
-import License from "../components/License";
+import SlideshowConfig from "../components/main-components/SlideshowConfig";
+import WifiConfig from "../components/main-components/WifiConfig";
+import License from "../components/main-components/License";
 
 const routes = [
   { path: '', name: 'Home', component: Home },

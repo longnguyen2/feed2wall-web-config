@@ -6,13 +6,13 @@ require('pos-vue-framework/src/plugin/waves')
 
 import VueRouter from 'vue-router';
 import router from './plugins/router';
-import P2pPlugin from './plugins/socketp2p';
+import SocketIo  from './plugins/socketio';
 
 Vue.config.productionTip = false
 
 Vue.use(VueCompositionApi)
 Vue.use(VueRouter)
-Vue.use(P2pPlugin)
+Vue.use(SocketIo)
 
 new Vue({
   router,

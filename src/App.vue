@@ -5,11 +5,11 @@
 </template>
 
 <script>
-import WifiConfig from "./components/WifiConfig"
+import WifiConfig from "./components/main-components/WifiConfig"
 import Authorizing from "./components/Authorizing"
-import SlideshowConfig from "./components/SlideshowConfig"
+import SlideshowConfig from "./components/main-components/SlideshowConfig"
 import Home from "./components/Home"
-import License from "./components/License"
+import License from "./components/main-components/License"
 
 export default {
   name: 'app',
