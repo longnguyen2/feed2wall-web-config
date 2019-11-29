@@ -5,11 +5,18 @@
       <span class="ml-3 text-white fw-500">Slideshow config</span>
     </g-toolbar>
     <div v-show="loading" class="bg-amber-accent-4 text-white fs-small fw-500 ta-center">Loading config data</div>
+    <div v-show="error" class="bg-red text-white fs-small fw-500 ta-center">Please enter an account or hashtag</div>
 
-    <g-row justify-content="space-between">
-<!--      <g-col cols="5"><g-select :items="types" item-value="text" solo v-model="model.queryType" :rules="[checkNotEmpty]"/></g-col>-->
-<!--      <g-col cols="7"><g-text-field :placeholder="inputPlaceholder" solo v-model="model.queryName"/></g-col>-->
-      <g-col><g-autocomplete placeholder="Enter @Account or #Hashtag" :items="searchItems" solo v-model="model.queryName" @input="saySomething"/></g-col>
+    <g-row class="col-flex" justify-content="flex-start">
+      <g-col>
+        <g-text-field solo placeholder="Enter @Account or #Hashtag"
+                      clearable clear-icon="mdi-close" @click:clear="clearSearch"
+                      :rules="[searchValidationRules.checkNotEmpty, searchValidationRules.checkPrefix]"
+                      v-model="searchText" @focus="showList"/>
+        <g-list v-show="searchItems.length !== 0 && searching"
+                style="position: fixed; z-index:406; left: 12px; right: 12px; max-height: 300px"
+                :items="searchItems" item-title="text" v-model="searchSelection" selectable />
+      </g-col>
     </g-row>
 
     <div class="configs fw-500">
@@ -46,7 +53,9 @@
   import { GToolbar, GIcon, GContainer, GRow, GCol, GTextField, GCheckbox, GBtn, GDivider, GSpacer, GList, GSelect, GSliderRemake, GSwitch, GAutocomplete } from 'pos-vue-framework/src/components';
 
   import { clearSource } from "../../utils";
+
   import axios from 'axios';
+  let source;
 
   export default {
     name: "SlideConfig",
@@ -57,18 +66,18 @@
       this.$socket.on('client:send-config', data => {
         data = clearSource(data);
         this.model = data;
+        this.searchText = data.query || '';
         this.loading = false;
       });
       this.$socket.emit('app:get-config');
     },
     data() {
       return {
-        types: [
-          { text: 'Profile' },
-          { text: 'Hashtag' },
-        ],
         searchItems: [],
-        checkNotEmpty: (value) => !!value || 'Required',
+        searchValidationRules: {
+          checkNotEmpty: (value) => !!value || 'Required',
+          checkPrefix: (value) => (value[0] === '@' || value[0] === '#') || 'Must start with @ or #'
+        },
         basicConfigs: [
           { model: 'total', title: 'Number of posts: ', subtext: '', min: 1, max: 100, unit: '' },
           { model: 'delay', title: 'Delay: ', subtext: 'Each image is shown for', min: 5, max: 60, unit: 's' },
@@ -81,9 +90,10 @@
           { model: 'commentCount', enableMsg: 'Display comment count', disableMsg: 'Do not display comment count' },
           { model: 'caption', enableMsg: 'Display caption', disableMsg: 'Do not display caption' },
         ],
+        searchSelection: '',
+        searchText: '',
         model: {
-          queryName: null,
-          queryType: 'Profile',
+          query: '',
           basic: {
             total: 1,
             delay: 5,
@@ -97,56 +107,103 @@
             caption: true,
           }
         },
-        loading: false
+        loading: false,
+        error: false,
+        searching: false,
       }
     },
-    computed: {
-      inputPlaceholder() {
-        if (!this.model.queryType) {
-          return '';
+    watch: {
+      searchText(newQuery) {
+        this.searchItems = [];
+        if (!newQuery || newQuery.length < 2) {
+          if (source) source.cancel('Operation canceled due to new request.');
+          return;
         }
-        return this.model.queryType.toLowerCase() === 'profile' ? 'Enter an username' : 'Enter a hashtag';
+        if (newQuery[0] === '@' || newQuery[0] === '#') {
+          this.search(newQuery);
+        }
+      },
+      searchSelection(selection) {
+        if (!selection) {
+          this.searching = false;
+          return;
+        }
+
+        this.searching = false;
+        this.searchText = selection.text;
+        this.model.query = selection.text;
       }
     },
     methods: {
       backToHome() {
         this.$router.push({ path: '/' });
       },
+      showList() {
+        this.error = false;
+        this.searching = true;
+      },
+      clearSearch() {
+        this.searchText = '';
+        this.model.query = '';
+      },
       saveConfig() {
+        if (!this.model.query) {
+          this.error = true;
+          return;
+        }
         const configModel = clearSource(this.model);
         this.$socket.emit('app:change-config', configModel);
       },
       resetConfig() {
-        this.search('@vindiesel');
-      },
-      saySomething() {
-        console.log('mama, just killed a man');
+        this.$socket.emit('app:get-config');
       },
       async search(query) {
-        query = encodeURI(query);
         if (query[0] === '#') query = `%23${query.substring(1, query.length)}`;
         if (query[0] === '@') query = `%40${query.substring(1, query.length)}`;
         const searchUrl = `https://www.instagram.com/web/search/topsearch/?context=blended&query=${query}&include_reel=true`;
-        const { data: searchResult } = await axios.get(searchUrl);
 
-        this.searchItems = [];
-        const accounts = searchResult.users.map(account => ({ text: account.user['username'], prepend: account.user['profile_pic_url'], subtitle: account.user['full_name'] }));
-        this.searchItems = this.searchItems.concat(accounts);
-        const hashtags = searchResult.hashtags.map(tag => ({ text: `#${tag.hashtag['name']}`, prepend: tag.hashtag['profile_pic_url'], subtitle: tag.hashtag['search_result_subtitle'] }));
-        this.searchItems = this.searchItems.concat(hashtags);
+        if (source) source.cancel('Operation canceled due to new request.');
+        source = axios.CancelToken.source();
+        axios.get(searchUrl, {cancelToken: source.token})
+          .then(response => {
+            const searchResult = response.data;
+            const accounts = searchResult.users.map(account => ({
+              text: `@${account.user['username']}`,
+              prepend: account.user['profile_pic_url'],
+              subtitle: account.user['full_name'],
+              type: 'account'
+            }));
+            this.searchItems = this.searchItems.concat(accounts);
+            const hashtags = searchResult.hashtags.map(tag => ({
+              text: `#${tag.hashtag['name']}`,
+              prepend: tag.hashtag['profile_pic_url'],
+              subtitle: tag.hashtag['search_result_subtitle'],
+              type: 'hashtag'
+            }));
+            this.searchItems = this.searchItems.concat(hashtags);
+          })
+          .catch(e => {});
       }
   }
   }
 </script>
 
 <style scoped lang="scss">
-  .g-tf__outlined.g-tf-wrapper {
-    ::v-deep &:focus-within fieldset {
-      border: 2px solid #00b0ff;
+  .g-tf {
+    ::v-deep &::after {
+      background-color: #00b0ff;
     }
 
-    ::v-deep & fieldset {
-      border: 1px solid rgba(0, 0, 0, 0.2);
+    ::v-deep &-label__focused {
+      color: #00b0ff;
+    }
+
+    ::v-deep &__error::after {
+      background-color: #ff0000;
+    }
+
+    ::v-deep & {
+      margin: 0
     }
   }
 

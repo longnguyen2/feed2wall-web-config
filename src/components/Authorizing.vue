@@ -10,7 +10,7 @@
           </g-card-title>
 
           <g-card-text>
-            <g-text-field v-if="isNotAuthorized" placeholder="Enter Authorization Key" />
+            <g-text-field v-if="isNotAuthorized" placeholder="Enter Authorization Key" v-model="authorizationKey" type="password"/>
             <template v-else-if="isRequiredLogin">
               <g-text-field placeholder="Instagram Username"
                             :rules="[rules.validateUsername]" />
@@ -22,16 +22,19 @@
                 v-mask="codeMask" />
           </g-card-text>
 
+          <span class="pl-3" v-show="displayAlert" :class="[alertClass]">{{alertMsg}}</span>
+
           <g-card-actions v-if="isNotAuthorized" class="justify-end">
-            <g-btn  background-color="#00b0ff" text-color="#ffffff">Submit</g-btn>
+            <g-btn :disabled="buttonDisabled" background-color="#00b0ff" text-color="#ffffff" @click="authorize">Submit</g-btn>
           </g-card-actions>
           <g-card-actions v-else-if="isRequiredLogin" class="justify-end">
-            <g-btn background-color="#00b0ff" text-color="#ffffff">Login</g-btn>
+            <g-btn :disabled="buttonDisabled" v-show="showBackButton" background-color="#ffffff" text-color="#000000">Back</g-btn>
+            <g-btn :disabled="buttonDisabled" background-color="#00b0ff" text-color="#ffffff">Login</g-btn>
           </g-card-actions>
           <g-card-actions v-else class="justify-between">
-              <g-btn background-color="#ff1744" text-color="#ffffff">Logout</g-btn>
-              <g-btn background-color="#ffffff" text-color="#000000">New code</g-btn>
-              <g-btn background-color="#00b0ff" text-color="#ffffff">Send</g-btn>
+              <g-btn :disabled="buttonDisabled" background-color="#ff1744" text-color="#ffffff">Logout</g-btn>
+              <g-btn :disabled="buttonDisabled" background-color="#ffffff" text-color="#000000">New code</g-btn>
+              <g-btn :disabled="buttonDisabled" background-color="#00b0ff" text-color="#ffffff">Send</g-btn>
           </g-card-actions>
 
         </g-card>
@@ -50,25 +53,17 @@
     name: "Authorizing",
     components: { GContainer, GRow, GCol, GCard, GCardTitle, GCardText, GCardActions, GImg, GTextField, GBtn },
     directives: { mask },
-    props: {
-      isNotAuthorized: {
-        type: Boolean,
-        default: false,
-        required: true,
-      },
-      isRequiredLogin: {
-        type: Boolean,
-        default: true,
-        required: true,
-      },
-      isRequiredSecurityCode: {
-        type: Boolean,
-        default: true,
-        require: true,
-      },
+    async created() {
+      this.isNotAuthorized = !localStorage.getItem('isAuthorized');
+      // if (!this.isNotAuthorized && !this.isRequiredLogin && !this.isRequiredSecurityCode) {
+      //   await this.$router.push({ path: '/' });
+      // }
     },
     data() {
       return {
+        isNotAuthorized: false,
+        isRequiredLogin: false,
+        isRequiredSecurityCode: false,
         rules: {
           validateUsername: value => !!value || 'Username cannot be empty',
           validatePassword: value => !!value || 'Password cannot be empty'
@@ -95,18 +90,31 @@
             authorizationKey: this.authorizationKey,
           };
 
-          const { data: authorizationInfo } = await axios.post(`http://${location.hostname}:4000/api/v1/authorize`, payload);
-          const redirect = authorizationInfo.lastRequestedUri;
+          const { data: authorizationInfo } = await axios.post(`http://${location.hostname}:3000/config/authorize`, payload);
+          if (authorizationInfo.status === 'failure') {
+            this.alertMsg = 'Authorization failed';
+            this.displayAlert = true;
+            this.alertClass = 'text-red';
+            return;
+          } else {
+            localStorage.setItem('isAuthorized', 'true');
+          }
+
           this.displayAlert = false;
 
-          if (!this.isRequiredLogin) {
-            window.location.href = `http://${location.host}${redirect}`;
+          if (!this.isRequiredLogin && !this.isRequiredSecurityCode) {
+            const redirect = this.$route.query.redirect;
+            if (redirect) {
+              await this.$router.push({ path: redirect });
+            } else {
+              await this.$router.push({ path: '/' });
+            }
           }
         } catch (e) {
           console.warn(e);
           this.alertMsg = 'Authorization failed';
           this.displayAlert = true;
-          this.alertClass = 'red--text';
+          this.alertClass = 'text-red';
         } finally {
           this.buttonDisabled = false;
         }
@@ -121,20 +129,18 @@
 
           const { data: saveLoginStatus } = await axios.post(`http://${location.hostname}:4000/api/v1/save-instagram-login-info`, payload);
           if (saveLoginStatus.success) {
-            const redirect = saveLoginStatus.lastRequestUri;
             this.displayAlert = false;
-
-            window.location.href = `http://${location.hostname}:4000${redirect}`;
+            this.$router.go(-1);
           } else {
             this.displayAlert = true;
             this.alertMsg = saveLoginStatus.error;
-            this.alertClass = 'red--text';
+            this.alertClass = 'text-red';
           }
         } catch (e) {
           console.warn(e);
           this.alertMsg = 'Saving login info failed!';
           this.displayAlert = true;
-          this.alertClass = 'red--text';
+          this.alertClass = 'text-red';
         } finally {
           this.buttonDisabled = false;
         }
@@ -146,21 +152,21 @@
             securityCode: this.securityCode,
           };
 
-          const { data: saveSecurityCodeStatus } = await axios.post(`http://${location.hostname}:4000/api/v1/submit-security-code`, payload);
+          const { data: saveSecurityCodeStatus } = await axios.post(`http://${location.hostname}:3000/config/submit-security-code`, payload);
           if (saveSecurityCodeStatus.success) {
             this.alertMsg = 'Submit code successfully. Retry submitting if device\'s screen shows error message';
             this.displayAlert = true;
-            this.alertClass = 'green--text';
+            this.alertClass = 'text-green';
           } else {
             this.displayAlert = true;
             this.alertMsg = saveSecurityCodeStatus.error;
-            this.alertClass = 'red--text';
+            this.alertClass = 'text-red';
           }
         } catch (e) {
           console.warn(e);
           this.alertMsg = 'Submitting security code failed!';
           this.displayAlert = true;
-          this.alertClass = 'red--text';
+          this.alertClass = 'text-red';
         } finally {
           this.buttonDisabled = false;
         }
@@ -179,15 +185,15 @@
       async getNewSecurityCode() {
         this.buttonDisabled = true;
         try {
-          await axios.get(`http://${location.hostname}:4000/api/v1/get-new-code`);
+          await axios.get(`http://${location.hostname}:3000/config/get-new-code`);
           this.alertMsg = 'Please check your email';
           this.displayAlert = true;
-          this.alertClass = 'green--text';
+          this.alertClass = 'text-green';
         } catch (e) {
           console.warn(e);
           this.alertMsg = 'Send request failed';
           this.displayAlert = true;
-          this.alertClass = 'red--text';
+          this.alertClass = 'text-red';
         } finally {
           this.buttonDisabled = false;
         }
