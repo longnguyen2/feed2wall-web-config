@@ -32,7 +32,6 @@
   export default {
     name: "Authorizing",
     components: { GContainer, GRow, GCol, GCard, GCardTitle, GCardText, GCardActions, GImg, GTextField, GBtn },
-    directives: { mask },
     created() {
       this.isNotAuthorized = !localStorage.getItem('isAuthorized');
       if (!this.isNotAuthorized) {
